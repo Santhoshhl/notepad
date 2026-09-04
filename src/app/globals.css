@@ -1,0 +1,30 @@
+/* Table Styling for TipTap */
+.ProseMirror table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+  width: 100%;
+  table-layout: fixed;
+  overflow: hidden;
+}
+.ProseMirror td,
+.ProseMirror th {
+  min-width: 1em;
+  border: 1px solid #3f3f46;
+  padding: 8px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+}
+.ProseMirror th {
+  font-weight: bold;
+  text-align: left;
+  background-color: #27272a;
+}
+.ProseMirror .selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(200, 200, 255, 0.1);
+  pointer-events: none;
+}
