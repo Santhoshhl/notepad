@@ -50,6 +50,7 @@ export default function App() {
   const [tree, setTree] = useState<NoteItem[]>(DEFAULT_TREE);
   const [trash, setTrash] = useState<NoteItem[]>([]);
   const [activeNoteId, setActiveNoteId] = useState<string>('3');
+  const [openNoteIds, setOpenNoteIds] = useState<string[]>(['3']);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -69,7 +70,10 @@ export default function App() {
           setTree(savedVault.tree);
           setTrash(Array.isArray(savedVault.trash) ? savedVault.trash : []);
           const firstNote = findFirstNote(savedVault.tree);
-          if (firstNote) setActiveNoteId(firstNote.id);
+          if (firstNote) {
+            setActiveNoteId(firstNote.id);
+            setOpenNoteIds([firstNote.id]);
+          }
         } else {
           const legacyVault = localStorage.getItem('obsidian_tree');
           if (legacyVault) {
@@ -214,9 +218,26 @@ export default function App() {
     const newTree = removeFromTree(tree, id);
     updateTree(newTree);
     setTrash((current) => [...current, item]);
+    setOpenNoteIds((current) => current.filter((noteId) => noteId !== id));
     if (!findNote(newTree, activeNoteId)) {
-      setActiveNoteId(findFirstNote(newTree)?.id || '');
+      const nextNote = findFirstNote(newTree);
+      setActiveNoteId(nextNote?.id || '');
+      if (nextNote) setOpenNoteIds((current) => current.includes(nextNote.id) ? current : [...current, nextNote.id]);
     }
+  };
+
+  const selectNote = (id: string) => {
+    setActiveNoteId(id);
+    setOpenNoteIds((current) => current.includes(id) ? current : [...current, id]);
+    setIsSidebarOpen(false);
+  };
+
+  const closeNoteTab = (id: string) => {
+    setOpenNoteIds((current) => {
+      const remaining = current.filter((noteId) => noteId !== id);
+      if (id === activeNoteId) setActiveNoteId(remaining[remaining.length - 1] || '');
+      return remaining;
+    });
   };
 
   const restoreItem = (id: string) => {
@@ -233,6 +254,9 @@ export default function App() {
   };
 
   const activeNote = findNote(tree, activeNoteId);
+  const openNotes = openNoteIds
+    .map((id) => findNote(tree, id))
+    .filter((item): item is NoteItem => item?.type === 'note');
 
   return (
     <div className="relative flex h-screen w-screen overflow-hidden bg-zinc-950 font-sans text-zinc-100 antialiased">
@@ -304,10 +328,7 @@ export default function App() {
               key={item.id} 
               item={item} 
               activeId={activeNoteId} 
-              onSelect={(id) => {
-                setActiveNoteId(id);
-                setIsSidebarOpen(false);
-              }}
+              onSelect={selectNote}
               onAdd={addItem}
               onDelete={moveToTrash}
               onRename={renameItem}
@@ -341,6 +362,30 @@ export default function App() {
           <div className="flex h-full items-center justify-center text-sm text-zinc-500">Loading vault...</div>
         ) : activeNote ? (
           <>
+            <nav className="flex shrink-0 overflow-x-auto border-b border-zinc-800 bg-zinc-900/60 pl-14 md:pl-0" aria-label="Open notes">
+              {openNotes.map((note) => (
+                <div
+                  key={note.id}
+                  className={`group flex min-w-0 shrink-0 items-center border-r border-zinc-800 ${activeNoteId === note.id ? 'bg-zinc-950 text-purple-300' : 'text-zinc-400 hover:bg-zinc-800/70 hover:text-zinc-200'}`}
+                >
+                  <button
+                    onClick={() => setActiveNoteId(note.id)}
+                    className="max-w-48 truncate px-3 py-2.5 text-left text-xs font-medium"
+                    title={note.name}
+                  >
+                    {note.name}
+                  </button>
+                  <button
+                    onClick={() => closeNoteTab(note.id)}
+                    className="mr-1 rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-100"
+                    aria-label={`Close ${note.name}`}
+                    title="Close tab"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </nav>
             <header className="flex items-center justify-between border-b border-zinc-800 py-3 pl-14 pr-4 text-xs text-zinc-500 md:px-8">
               <span>{activeNote.name}</span>
               <button
