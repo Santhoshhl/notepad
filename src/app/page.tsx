@@ -10,7 +10,8 @@ import {
   ChevronRight, 
   ChevronDown, 
   Trash2, 
-  Search 
+  Search,
+  Save
 } from 'lucide-react';
 
 interface NoteItem {
@@ -44,16 +45,43 @@ export default function App() {
   const [tree, setTree] = useState<NoteItem[]>(DEFAULT_TREE);
   const [activeNoteId, setActiveNoteId] = useState<string>('3');
   const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
-  // Load / Save from LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('obsidian_tree');
-    if (saved) setTree(JSON.parse(saved));
+    const loadVault = async () => {
+      try {
+        const response = await fetch('/api/vault', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Unable to load vault');
+
+        const savedVault = await response.json();
+        if (Array.isArray(savedVault.tree)) {
+          setTree(savedVault.tree);
+          const firstNote = findFirstNote(savedVault.tree);
+          if (firstNote) setActiveNoteId(firstNote.id);
+        } else {
+          const legacyVault = localStorage.getItem('obsidian_tree');
+          if (legacyVault) {
+            setTree(JSON.parse(legacyVault));
+            setIsDirty(true);
+          }
+        }
+      } catch {
+        setSaveError('Could not load the shared vault.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadVault();
   }, []);
 
-  const saveTree = (newTree: NoteItem[]) => {
+  const updateTree = (newTree: NoteItem[]) => {
     setTree(newTree);
-    localStorage.setItem('obsidian_tree', JSON.stringify(newTree));
+    setIsDirty(true);
+    setSaveError('');
   };
 
   // Helper to find note content
@@ -77,7 +105,7 @@ export default function App() {
         return item;
       });
     };
-    saveTree(updateRecursive(tree));
+    updateTree(updateRecursive(tree));
   };
 
   // Add a new note or folder inside a topic/subtopic
@@ -105,7 +133,43 @@ export default function App() {
       });
     };
 
-    saveTree(addRecursive(tree));
+    updateTree(addRecursive(tree));
+  };
+
+  const saveVault = async () => {
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      const response = await fetch('/api/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tree }),
+      });
+      if (!response.ok) throw new Error('Unable to save vault');
+      localStorage.removeItem('obsidian_tree');
+      setIsDirty(false);
+    } catch {
+      setSaveError('Save failed. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const deleteItem = (id: string) => {
+    if (id === '1') return;
+    const removeRecursive = (items: NoteItem[]): NoteItem[] =>
+      items
+        .filter((item) => item.id !== id)
+        .map((item) => ({
+          ...item,
+          children: item.children ? removeRecursive(item.children) : undefined,
+        }));
+
+    const newTree = removeRecursive(tree);
+    updateTree(newTree);
+    if (!findNote(newTree, activeNoteId)) {
+      setActiveNoteId(findFirstNote(newTree)?.id || '');
+    }
   };
 
   const activeNote = findNote(tree, activeNoteId);
@@ -116,13 +180,23 @@ export default function App() {
       <div className="w-64 border-r border-zinc-800 bg-zinc-900 flex flex-col">
         <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
           <span className="font-bold text-sm tracking-wide text-zinc-200 uppercase">Vault</span>
-          <button 
-            onClick={() => addItem('1', 'folder')} 
-            className="text-zinc-400 hover:text-white" 
-            title="New Subtopic"
-          >
-            <FolderPlus size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => addItem('1', 'folder')} 
+              className="text-zinc-400 hover:text-white" 
+              title="New Subtopic"
+            >
+              <FolderPlus size={16} />
+            </button>
+            <button
+              onClick={saveVault}
+              disabled={isSaving || !isDirty}
+              className="flex items-center gap-1 rounded bg-purple-600 px-2 py-1 text-xs font-medium text-white hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Save shared vault"
+            >
+              <Save size={14} /> {isSaving ? 'Saving' : isDirty ? 'Save' : 'Saved'}
+            </button>
+          </div>
         </div>
 
         <div className="p-2">
@@ -146,6 +220,7 @@ export default function App() {
               activeId={activeNoteId} 
               onSelect={(id) => setActiveNoteId(id)}
               onAdd={addItem}
+              onDelete={deleteItem}
             />
           ))}
         </div>
@@ -153,10 +228,19 @@ export default function App() {
 
       {/* Main Workspace Editor */}
       <div className="flex-1 flex flex-col h-full bg-zinc-950">
-        {activeNote ? (
+        {isLoading ? (
+          <div className="flex h-full items-center justify-center text-sm text-zinc-500">Loading vault...</div>
+        ) : activeNote ? (
           <>
-            <header className="border-b border-zinc-800 px-8 py-3 text-xs text-zinc-500">
-              {activeNote.name}
+            <header className="flex items-center justify-between border-b border-zinc-800 px-8 py-3 text-xs text-zinc-500">
+              <span>{activeNote.name}</span>
+              <button
+                onClick={() => deleteItem(activeNote.id)}
+                className="flex items-center gap-1 rounded px-2 py-1 text-rose-400 hover:bg-rose-400/10 hover:text-rose-300"
+                title="Delete note"
+              >
+                <Trash2 size={14} /> Delete
+              </button>
             </header>
             <div className="flex-1 overflow-hidden">
               <Editor content={activeNote.content || ''} onChange={updateContent} />
@@ -168,20 +252,34 @@ export default function App() {
           </div>
         )}
       </div>
+      {saveError && <div className="fixed bottom-4 right-4 rounded-md bg-rose-950 px-3 py-2 text-sm text-rose-200 shadow-lg">{saveError}</div>}
     </div>
   );
+}
+
+function findFirstNote(items: NoteItem[]): NoteItem | null {
+  for (const item of items) {
+    if (item.type === 'note') return item;
+    if (item.children) {
+      const found = findFirstNote(item.children);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 function TreeItemNode({ 
   item, 
   activeId, 
   onSelect, 
-  onAdd 
+  onAdd,
+  onDelete
 }: { 
   item: NoteItem; 
   activeId: string; 
   onSelect: (id: string) => void;
   onAdd: (parentId: string, type: 'folder' | 'note') => void;
+  onDelete: (id: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -197,12 +295,13 @@ function TreeItemNode({
           <div className="hidden group-hover:flex items-center gap-1">
             <button onClick={() => onAdd(item.id, 'note')} title="New Note"><FilePlus size={12} /></button>
             <button onClick={() => onAdd(item.id, 'folder')} title="New Folder"><FolderPlus size={12} /></button>
+            {item.id !== '1' && <button onClick={() => onDelete(item.id)} title="Delete Folder"><Trash2 size={12} /></button>}
           </div>
         </div>
         {isOpen && item.children && (
           <div className="pl-4 border-l border-zinc-800 ml-2 space-y-0.5 mt-0.5">
             {item.children.map((child) => (
-              <TreeItemNode key={child.id} item={child} activeId={activeId} onSelect={onSelect} onAdd={onAdd} />
+              <TreeItemNode key={child.id} item={child} activeId={activeId} onSelect={onSelect} onAdd={onAdd} onDelete={onDelete} />
             ))}
           </div>
         )}
