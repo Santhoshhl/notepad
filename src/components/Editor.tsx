@@ -6,7 +6,7 @@ import { Table } from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Table as TableIcon, 
   Plus, 
@@ -16,7 +16,11 @@ import {
   Heading1, 
   Heading2, 
   List, 
-  ListOrdered 
+  ListOrdered,
+  Quote,
+  Code2,
+  AlignLeft,
+  Info
 } from 'lucide-react';
 
 interface EditorProps {
@@ -25,6 +29,7 @@ interface EditorProps {
 }
 
 export default function Editor({ content, onChange }: EditorProps) {
+  const [isBlockMenuOpen, setIsBlockMenuOpen] = useState(false);
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -52,10 +57,39 @@ export default function Editor({ content, onChange }: EditorProps) {
 
   if (!editor) return null;
 
+  const insertBlock = (action: () => void) => {
+    action();
+    setIsBlockMenuOpen(false);
+  };
+
   return (
     <div className="flex flex-col h-full bg-zinc-950">
       {/* Editor Toolbar */}
       <div className="flex flex-wrap gap-1 border-b border-zinc-800 bg-zinc-900/50 p-2 px-6">
+        <div className="relative">
+          <button
+            onClick={() => setIsBlockMenuOpen((isOpen) => !isOpen)}
+            className="flex items-center gap-1 rounded bg-purple-600 px-2 py-1.5 text-xs font-medium text-white hover:bg-purple-500"
+            title="Add a content block"
+          >
+            <Plus size={15} /> Add block
+          </button>
+
+          {isBlockMenuOpen && (
+            <div className="absolute left-0 top-full z-30 mt-2 grid w-72 grid-cols-2 gap-1 rounded-lg border border-zinc-700 bg-zinc-900 p-2 shadow-2xl">
+              <BlockOption icon={<AlignLeft size={16} />} label="Text" description="Start writing" onClick={() => insertBlock(() => editor.chain().focus().setParagraph().run())} />
+              <BlockOption icon={<Heading1 size={16} />} label="Heading" description="Section title" onClick={() => insertBlock(() => editor.chain().focus().toggleHeading({ level: 1 }).run())} />
+              <BlockOption icon={<List size={16} />} label="Bulleted list" description="Key points" onClick={() => insertBlock(() => editor.chain().focus().toggleBulletList().run())} />
+              <BlockOption icon={<ListOrdered size={16} />} label="Numbered list" description="Steps" onClick={() => insertBlock(() => editor.chain().focus().toggleOrderedList().run())} />
+              <BlockOption icon={<Quote size={16} />} label="Quote" description="Quoted text" onClick={() => insertBlock(() => editor.chain().focus().toggleBlockquote().run())} />
+              <BlockOption icon={<Code2 size={16} />} label="Code" description="Code snippet" onClick={() => insertBlock(() => editor.chain().focus().toggleCodeBlock().run())} />
+              <BlockOption icon={<Info size={16} />} label="Info note" description="Callout box" onClick={() => insertBlock(() => editor.chain().focus().insertContent('<blockquote><p>Type an important note here…</p></blockquote>').run())} />
+              <BlockOption icon={<TableIcon size={16} />} label="Table" description="Rows and columns" onClick={() => insertBlock(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())} />
+            </div>
+          )}
+        </div>
+
+        <div className="mx-1 h-6 w-px self-center bg-zinc-800" />
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
           className={`p-1.5 rounded hover:bg-zinc-800 ${editor.isActive('bold') ? 'bg-zinc-800 text-purple-400' : 'text-zinc-300'}`}
@@ -127,5 +161,27 @@ export default function Editor({ content, onChange }: EditorProps) {
         <EditorContent editor={editor} />
       </div>
     </div>
+  );
+}
+
+function BlockOption({
+  icon,
+  label,
+  description,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button onClick={onClick} className="flex items-start gap-2 rounded-md p-2 text-left hover:bg-zinc-800">
+      <span className="mt-0.5 text-purple-400">{icon}</span>
+      <span>
+        <span className="block text-xs font-medium text-zinc-100">{label}</span>
+        <span className="block text-[11px] text-zinc-500">{description}</span>
+      </span>
+    </button>
   );
 }
