@@ -38,4 +38,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 =======
 # notepad
 Simple Web based applications to take notes
->>>>>>> 0c03f3a67878ac984ffbbe4ea5f5497b67d06dcb
+>>>>>>> 
