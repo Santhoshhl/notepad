@@ -443,7 +443,7 @@ function TreeItemNode({
   onRename: (id: string) => void;
   onMove: (id: string) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   if (item.type === 'folder') {
     return (
@@ -454,12 +454,12 @@ function TreeItemNode({
             <Folder size={14} className="text-purple-400" />
             <span>{item.name}</span>
           </div>
-          <div className="flex items-center gap-1 md:hidden md:group-hover:flex">
-            <button onClick={() => onAdd(item.id, 'note')} title="New Note"><FilePlus size={12} /></button>
-            <button onClick={() => onAdd(item.id, 'folder')} title="New Folder"><FolderPlus size={12} /></button>
-            {item.id !== '1' && <button onClick={() => onRename(item.id)} title="Rename Folder"><Pencil size={12} /></button>}
-            {item.id !== '1' && <button onClick={() => onMove(item.id)} title="Move Folder"><FolderInput size={12} /></button>}
-            {item.id !== '1' && <button onClick={() => onDelete(item.id)} title="Delete Folder"><Trash2 size={12} /></button>}
+          <div className="flex shrink-0 items-center gap-1 text-zinc-400">
+            <button className="rounded p-1 hover:bg-zinc-700 hover:text-white" onClick={() => onAdd(item.id, 'note')} title="New Note"><FilePlus size={12} /></button>
+            <button className="rounded p-1 hover:bg-zinc-700 hover:text-white" onClick={() => onAdd(item.id, 'folder')} title="New Folder"><FolderPlus size={12} /></button>
+            {item.id !== '1' && <button className="rounded p-1 hover:bg-zinc-700 hover:text-white" onClick={() => onRename(item.id)} title="Rename Folder"><Pencil size={12} /></button>}
+            {item.id !== '1' && <button className="rounded p-1 hover:bg-zinc-700 hover:text-white" onClick={() => onMove(item.id)} title="Move Folder"><FolderInput size={12} /></button>}
+            {item.id !== '1' && <button className="rounded p-1 hover:bg-zinc-700 hover:text-rose-300" onClick={() => onDelete(item.id)} title="Delete Folder"><Trash2 size={12} /></button>}
           </div>
         </div>
         {isOpen && item.children && (
@@ -480,10 +480,10 @@ function TreeItemNode({
       }`}
     >
       <button onClick={() => onSelect(item.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left"><FileText size={14} /><span className="truncate">{item.name}</span></button>
-      <div className="flex items-center gap-1 md:hidden md:group-hover:flex">
-        <button onClick={() => onRename(item.id)} title="Rename Note"><Pencil size={12} /></button>
-        <button onClick={() => onMove(item.id)} title="Move Note"><FolderInput size={12} /></button>
-        <button onClick={() => onDelete(item.id)} title="Move to Trash"><Trash2 size={12} /></button>
+      <div className="flex shrink-0 items-center gap-1 text-zinc-400">
+        <button className="rounded p-1 hover:bg-zinc-700 hover:text-white" onClick={() => onRename(item.id)} title="Rename Note"><Pencil size={12} /></button>
+        <button className="rounded p-1 hover:bg-zinc-700 hover:text-white" onClick={() => onMove(item.id)} title="Move Note"><FolderInput size={12} /></button>
+        <button className="rounded p-1 hover:bg-zinc-700 hover:text-rose-300" onClick={() => onDelete(item.id)} title="Move to Trash"><Trash2 size={12} /></button>
       </div>
     </div>
   );
